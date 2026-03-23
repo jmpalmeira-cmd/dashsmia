@@ -183,8 +183,8 @@ body{background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;fon
 <!-- ANÚNCIOS -->
 <div class="st">Anúncios</div>
 <div class="g2 fade">
-  <div class="card"><div class="ct">Top anúncios por receita <span class="ctag">utm_content</span></div><div class="rl" id="rAds"></div></div>
-  <div class="card"><div class="ct">Receita por anúncio <span class="ctag">horizontal</span></div><div class="cw h260"><canvas id="cAds"></canvas></div></div>
+  <div class="card"><div class="ct">Top anúncios por ticket médio <span class="ctag">utm_content</span></div><div class="rl" id="rAds"></div></div>
+  <div class="card"><div class="ct">Ticket médio por anúncio <span class="ctag">horizontal</span></div><div class="cw h260"><canvas id="cAds"></canvas></div></div>
 </div>
 
 <!-- REEMBOLSOS + MIX + CAMPANHAS -->
@@ -249,15 +249,18 @@ const set  = (id,v) => { const e=document.getElementById(id); if(e) e.textConten
 const setH = (id,v) => { const e=document.getElementById(id); if(e) e.innerHTML=v; };
 const sum  = (arr,k) => arr.reduce((s,r)=>s+r[k],0);
 
-function rankHTML(items, colors){
+function rankHTML(items, colors, metric){
   if(!items.length) return '<div style="color:var(--muted);font-size:12px;padding:16px 0">Sem dados no período</div>';
-  const maxR = items[0].receita;
+  const key = metric || 'receita';
+  const maxV = items[0][key];
   return items.map((c,i)=>{
-    const p = (c.receita/maxR*100).toFixed(1);
+    const p = (c[key]/maxV*100).toFixed(1);
+    const val = key==='ticket' ? M(c[key])+' avg' : M(c[key]);
+    const sub = key==='ticket' ? c.vendas+'v' : c.vendas+'v';
     return '<div class="ri"><div class="rtop"><div class="rlft"><span class="rnum">#'+(i+1)+'</span>'
       +'<span class="rname" title="'+c.name+'">'+c.name+'</span></div>'
-      +'<div class="rrgt"><span class="rrev">'+M(c.receita)+'</span>'
-      +'<span class="rcnt">'+c.vendas+'v</span></div></div>'
+      +'<div class="rrgt"><span class="rrev">'+val+'</span>'
+      +'<span class="rcnt">'+sub+'</span></div></div>'
       +'<div class="rbg"><div class="rbf" style="width:'+p+'%;background:'+colors[i]+'"></div></div></div>';
   }).join('');
 }
@@ -362,16 +365,16 @@ function render(){
   // Ads
   const am={};
   data.forEach(r=>{const k=r.anuncio;if(!am[k])am[k]={vendas:0,receita:0};am[k].vendas++;am[k].receita+=r.valor;});
-  const ads=Object.entries(am).filter(([k])=>k!=='(sem anúncio)').map(([k,v])=>({name:k,...v})).sort((a,b)=>b.receita-a.receita).slice(0,9);
-  setH('rAds', rankHTML(ads,AC));
+  const ads=Object.entries(am).filter(([k])=>k!=='(sem anúncio)').map(([k,v])=>({name:k,...v,ticket:v.vendas?v.receita/v.vendas:0})).sort((a,b)=>b.ticket-a.ticket).slice(0,9);
+  setH('rAds', rankHTML(ads,AC,'ticket'));
 
   DC('ads');
   CH.ads = new Chart(document.getElementById('cAds'),{type:'bar',
-    data:{labels:ads.map(a=>a.name.replace('AD ','')),datasets:[{label:'Receita',data:ads.map(a=>a.receita),backgroundColor:AC,borderRadius:4}]},
+    data:{labels:ads.map(a=>a.name.replace('AD ','')),datasets:[{label:'Ticket Médio',data:ads.map(a=>a.ticket),backgroundColor:AC,borderRadius:4}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:ctx=>'  '+M(ctx.raw)}}},
-      scales:{x:{grid:{color:GC},ticks:{callback:v=>K(v)}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
-  });
+      plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:ctx=>'  '+M(ctx.raw)+' / venda'}}},
+      scales:{x:{grid:{color:GC},ticks:{callback:v=>M(v)}},y:{grid:{display:false},ticks:{font:{size:10}}}}}}
+  );
 
   // Reembolsos por produto
   const rfF = reimb.filter(r=>r.produto==='Mentoria Social Media IA');
